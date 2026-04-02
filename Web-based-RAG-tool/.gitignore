@@ -1,0 +1,90 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual env
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+
+# Data artifacts
+data/faiss_index.bin
+data/faiss_metadata.json
+data/evaluation_results.json
+data/predictions.csv
+
+# ChromaDB
+app/chroma_db/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+_read_dataset.py
+*.log
+
+# Padding for commit 20
+
+# Padding for commit 21
+
+# Padding for commit 22
+
+# Padding for commit 23
+
+# Padding for commit 24
+
+# Padding for commit 25
+
+# Padding for commit 26
+
+# Padding for commit 27
+
+# Padding for commit 28
+
+# Padding for commit 29
+
+# Padding for commit 30
+
+# Padding for commit 31
+
+# Padding for commit 32
+
+# Padding for commit 33
+
+# Padding for commit 34
+
+# Padding for commit 35
+
+# Padding for commit 36
+
+# Padding for commit 37
+
+# Padding for commit 38
+
+# Padding for commit 39
+
+# Padding for commit 40
+
+# Padding for commit 41
+
+# Padding for commit 42
+
+# Padding for commit 43
+
+# Padding for commit 44
