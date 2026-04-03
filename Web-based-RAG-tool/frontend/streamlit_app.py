@@ -1,12 +1,22 @@
 """
-SHL Assessment Recommender — Streamlit Frontend
+SHL Assessment Recommender — Streamlit Frontend (Self-Contained)
 
-Premium dark-theme UI for querying the RAG-based assessment recommendation system.
+This version embeds the retrieval pipeline directly for Streamlit Cloud deployment.
+No external API needed.
 """
 
 import json
-import requests
+import os
+import sys
+
 import streamlit as st
+
+# Add project root to path
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT_DIR)
+os.chdir(ROOT_DIR)
+
+from retriever.retrieval_pipeline import RetrievalPipeline
 
 # ─── Page Config ────────────────────────────────────────────────
 
@@ -16,6 +26,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ─── Initialize Pipeline (cached) ──────────────────────────────
+
+@st.cache_resource
+def load_pipeline():
+    """Load and cache the retrieval pipeline."""
+    pipeline = RetrievalPipeline(
+        data_path=os.path.join(ROOT_DIR, "data", "scraped_data.json"),
+        index_path=os.path.join(ROOT_DIR, "data", "faiss_index.bin"),
+        metadata_path=os.path.join(ROOT_DIR, "data", "faiss_metadata.json"),
+    )
+    pipeline.initialize()
+    return pipeline
 
 # ─── Custom CSS ─────────────────────────────────────────────────
 
@@ -264,16 +287,7 @@ st.markdown("""
 # ─── Sidebar ────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("### ⚙️ Configuration")
-    
-    api_url = st.text_input(
-        "API Endpoint",
-        value=st.session_state.get("api_url", "http://localhost:8000"),
-        help="Backend API URL",
-    )
-    st.session_state.api_url = api_url
-    
-    st.markdown("---")
+    st.markdown("### 🧠 About This Tool")
     
     st.markdown("""
     <div class="sidebar-section">
@@ -295,6 +309,7 @@ with st.sidebar:
             <li>Entry-level customer service agent</li>
             <li>Senior data scientist with Python</li>
             <li>Sales manager leadership assessment</li>
+            <li>Content Writer expert in English and SEO</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -308,6 +323,13 @@ with st.sidebar:
             <p style="color: #a855f7; margin: 0.2rem 0;">● Simulation</p>
             <p style="color: #94a3b8; margin: 0.2rem 0;">● Other Types</p>
         </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("""
+    <div style="color: #475569; font-size: 0.75rem; text-align: center;">
+        <p>🔗 <a href="https://github.com/devdattapatilll/SHL-assessment1" target="_blank" style="color: #60a5fa;">GitHub Repository</a></p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -329,26 +351,24 @@ with col1:
 if search_btn and query.strip():
     with st.spinner("🔄 Searching 389+ assessments using hybrid RAG pipeline..."):
         try:
-            response = requests.post(
-                f"{api_url}/recommend",
-                json={"query": query.strip()},
-                timeout=120,
+            pipeline = load_pipeline()
+            results = pipeline.retrieve(
+                query=query.strip(),
+                top_k=10,
+                initial_k=20,
+                balance_types=True,
             )
-            response.raise_for_status()
-            data = response.json()
             
-            assessments = data.get("recommended_assessments", [])
-            
-            if not assessments:
+            if not results:
                 st.warning("No matching assessments found. Try a different query.")
             else:
                 st.markdown(f"""
                 <div class="results-header">
-                    <span>Found <strong>{len(assessments)}</strong> matching assessments</span>
+                    <span>Found <strong>{len(results)}</strong> matching assessments</span>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                for idx, item in enumerate(assessments, 1):
+                for idx, item in enumerate(results, 1):
                     name = item.get("name", "Unknown")
                     url = item.get("url", "#")
                     description = item.get("description", "")
@@ -401,9 +421,6 @@ if search_btn and query.strip():
                     </div>
                     """, unsafe_allow_html=True)
         
-        except requests.exceptions.ConnectionError:
-            st.error("❌ Cannot connect to the API. Make sure the backend is running.")
-            st.info("Start the API with: `python main.py --api`")
         except Exception as e:
             st.error(f"Error: {str(e)}")
 

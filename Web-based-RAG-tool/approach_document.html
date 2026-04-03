@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SHL Assessment Recommender - Approach Document</title>
+<style>
+@page { size: A4; margin: 2cm; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1a1a2e; max-width: 800px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 18pt; color: #0f3460; border-bottom: 2px solid #0f3460; padding-bottom: 6px; margin-top: 0; }
+h2 { font-size: 13pt; color: #16213e; margin-top: 16px; margin-bottom: 6px; }
+h3 { font-size: 11pt; color: #0f3460; margin-top: 10px; margin-bottom: 4px; }
+p, li { font-size: 10.5pt; margin: 4px 0; }
+ul, ol { padding-left: 20px; margin: 4px 0; }
+table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt; }
+th { background: #0f3460; color: white; padding: 6px 8px; text-align: left; }
+td { border: 1px solid #ddd; padding: 5px 8px; }
+tr:nth-child(even) { background: #f8f9fa; }
+.highlight { background: #e8f4fd; padding: 8px 12px; border-left: 3px solid #0f3460; margin: 8px 0; border-radius: 4px; }
+code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 9.5pt; }
+.page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>GenAI Assessment Recommendation System — Approach Document</h1>
+<p><strong>Author:</strong> Devdatta Patil &nbsp;|&nbsp; <strong>Date:</strong> April 2026 &nbsp;|&nbsp; <strong>GitHub:</strong> github.com/devdattapatilll/SHL-assessment1</p>
+
+<h2>1. Problem Statement</h2>
+<p>Build a web-based Retrieval-Augmented Generation (RAG) tool that accepts natural language queries or job descriptions and recommends the most relevant SHL assessments from their product catalog. The system must maximize <strong>Mean Recall@10</strong> against a provided evaluation dataset.</p>
+
+<h2>2. Architecture Overview</h2>
+<div class="highlight">
+<strong>Pipeline:</strong> Query → Preprocessing → Hybrid Search (FAISS + BM25) → Reciprocal Rank Fusion → K/P Balancing → Top-10 Results
+</div>
+
+<h3>2.1 Data Collection & Processing</h3>
+<ul>
+<li><strong>Web Scraper:</strong> Built a BeautifulSoup-based scraper targeting SHL's product catalog across 32 paginated pages, extracting <strong>389 unique Individual Test Solutions</strong>.</li>
+<li><strong>Fields Extracted:</strong> Name, URL, description, duration (parsed to integer minutes), adaptive/IRT support, remote testing support, and test type codes (mapped to descriptive labels: Knowledge & Skills, Personality & Behavior, etc.).</li>
+<li><strong>Normalization:</strong> Emoji indicators converted to Yes/No strings, test type codes (K, P, A, B, etc.) mapped to human-readable categories, duplicate URLs de-duplicated.</li>
+</ul>
+
+<h3>2.2 Embedding & Indexing</h3>
+<ul>
+<li><strong>Model:</strong> <code>all-MiniLM-L6-v2</code> from Sentence-Transformers (384-dim embeddings, optimized for semantic similarity).</li>
+<li><strong>Document Representation:</strong> Each assessment is embedded as: <code>name | description | test_type</code> — combining identity, content, and category for rich semantic coverage.</li>
+<li><strong>Vector Store:</strong> FAISS <code>IndexFlatIP</code> with L2-normalized vectors, enabling cosine similarity via inner product. Persistent storage to disk (<code>faiss_index.bin</code>).</li>
+</ul>
+
+<h3>2.3 Retrieval Pipeline (Hybrid RAG)</h3>
+<table>
+<tr><th>Stage</th><th>Method</th><th>Purpose</th></tr>
+<tr><td>1. Dense Retrieval</td><td>FAISS (Top-20)</td><td>Semantic similarity for conceptual matching</td></tr>
+<tr><td>2. Sparse Retrieval</td><td>BM25/Okapi (Top-20)</td><td>Keyword matching for exact term relevance</td></tr>
+<tr><td>3. Fusion</td><td>Reciprocal Rank Fusion (k=60)</td><td>Combine dense + sparse with weighted RRF scores</td></tr>
+<tr><td>4. Re-ranking</td><td>Weighted score aggregation</td><td>Semantic (70%) + BM25 (30%) fusion weights</td></tr>
+<tr><td>5. Balancing</td><td>K/P type allocation</td><td>Ensure mix: ~50% Knowledge, ~30% Personality, ~20% Other</td></tr>
+</table>
+
+<p><strong>Why Hybrid?</strong> Pure vector search misses exact keyword matches (e.g., "Java", "SQL"), while pure BM25 misses semantic intent (e.g., "developer" → "programmer"). RRF fusion captures both.</p>
+
+<h3>2.4 API Layer</h3>
+<ul>
+<li><strong>Framework:</strong> FastAPI with Pydantic validation</li>
+<li><strong>Endpoints:</strong> <code>GET /health</code> (status check), <code>POST /recommend</code> (accepts JSON <code>{"query": "..."}</code>, returns <code>{"recommended_assessments": [...]}</code>)</li>
+<li><strong>Optional LLM:</strong> Google Gemini 2.0 Flash for query understanding and skill extraction (gracefully degrades if unavailable)</li>
+<li><strong>Deployment:</strong> Render (free tier web service)</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>3. Frontend</h2>
+<ul>
+<li><strong>Framework:</strong> Streamlit with custom CSS (dark theme, gradient cards, responsive grid)</li>
+<li><strong>Features:</strong> Text/JD input, ranked results with test-type badges, duration/remote/adaptive metadata, direct links to SHL catalog</li>
+<li><strong>Deployment:</strong> Streamlit Community Cloud (self-contained — embeds the pipeline directly, no external API dependency)</li>
+</ul>
+
+<h2>4. Evaluation Methodology</h2>
+
+<h3>4.1 Dataset</h3>
+<p>Provided Excel file with <strong>10 unique queries</strong> and <strong>65 ground-truth query-URL pairs</strong> (5-10 relevant assessments per query).</p>
+
+<h3>4.2 Metric: Mean Recall@10</h3>
+<div class="highlight">
+<code>Recall@10 = |relevant assessments in top 10 predictions| / |total relevant assessments|</code><br>
+<code>Mean Recall@10 = average(Recall@10 across all queries)</code>
+</div>
+
+<h3>4.3 URL Normalization Challenge</h3>
+<p>Ground truth URLs use inconsistent prefixes (<code>/solutions/products/</code> vs <code>/products/</code>) and trailing slashes. Solution: Compare by <strong>URL slug only</strong> (final path segment), making matching robust to format variations.</p>
+
+<h3>4.4 Results</h3>
+<table>
+<tr><th>Configuration</th><th>Mean Recall@10</th><th>Notes</th></tr>
+<tr><td>Baseline (FAISS only)</td><td>0.02</td><td>Pure semantic search, no keyword matching</td></tr>
+<tr><td>Hybrid (FAISS + BM25 + RRF)</td><td>0.17</td><td>8.5× improvement over baseline</td></tr>
+</table>
+<p><strong>Key Insight:</strong> The dramatic improvement comes from BM25 capturing exact technology/skill keywords (Java, SQL, Excel) that semantic embeddings alone generalize too broadly.</p>
+
+<h2>5. Technology Stack & Justification</h2>
+<table>
+<tr><th>Component</th><th>Technology</th><th>Justification</th></tr>
+<tr><td>Embeddings</td><td>all-MiniLM-L6-v2</td><td>Fast, lightweight (90MB), strong semantic quality for short texts</td></tr>
+<tr><td>Vector Store</td><td>FAISS</td><td>No server dependency, persistent to disk, CPU-optimized</td></tr>
+<tr><td>Keyword Search</td><td>BM25/Okapi</td><td>Industry standard for sparse retrieval, complements dense search</td></tr>
+<tr><td>Fusion</td><td>RRF (k=60)</td><td>Robust rank aggregation without score calibration needed</td></tr>
+<tr><td>API</td><td>FastAPI</td><td>Async, auto-docs (Swagger), Pydantic validation</td></tr>
+<tr><td>Frontend</td><td>Streamlit</td><td>Rapid prototyping, free cloud hosting, Python-native</td></tr>
+<tr><td>LLM (optional)</td><td>Gemini 2.0 Flash</td><td>Free tier, fast inference, good at skill extraction</td></tr>
+</table>
+
+<h2>6. Future Improvements</h2>
+<ul>
+<li><strong>Cross-encoder re-ranking</strong> (e.g., <code>ms-marco-MiniLM-L-6-v2</code>) for finer-grained relevance scoring</li>
+<li><strong>Query expansion</strong> using LLM-generated synonyms and related skills</li>
+<li><strong>Duration/constraint filtering</strong> as hard post-retrieval filters</li>
+<li><strong>Fine-tuned embeddings</strong> on HR/assessment domain data</li>
+<li><strong>Larger evaluation set</strong> to validate generalization</li>
+</ul>
+
+</body>
+</html>
