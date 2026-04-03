@@ -1,4 +1,4 @@
-# SHL Assessment Recommender 🎯
+# Web-based RAG Tool
 
 A production-ready, GenAI-powered **Retrieval-Augmented Generation (RAG)** web application for recommending SHL assessments based on natural language queries or job descriptions.
 
