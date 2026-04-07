@@ -1,90 +1,123 @@
 # Web-based RAG Tool
 
-[![Status](https://img.shields.io/badge/status-operational-brightgreen?style=for-the-badge)](https://img.shields.io/badge/status-operational-brightgreen)
-[![Python](https://img.shields.io/badge/python-3.9+-blue?style=for-the-badge&logo=python)](https://img.shields.io/badge/python-3.9+-blue)
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](https://img.shields.io/badge/license-MIT-green)
-
-> **💡 Pro-Tip:** For the best visual experience with the Streamlit demo, please enable **Dark Mode** in your browser settings.
+A production-ready, GenAI-powered **Retrieval-Augmented Generation (RAG)** web application for recommending SHL assessments based on natural language queries or job descriptions.
 
 ---
 
-## 📖 Project Overview
-**Web-based RAG Tool** is an AI-powered recommendation engine designed to automate the selection of SHL assessments for specific job roles. By utilizing **Retrieval-Augmented Generation (RAG)** and semantic search, it bridges the gap between complex job requirements and the ideal evaluation tools.
+## 🔗 Live Links
 
-### 🚩 The Challenge
-Aligning job descriptions with technical assessments often results in manual overhead and hiring mismatches. This tool solves that by providing context-aware matching in seconds.
+| Resource | URL |
+|----------|-----|
+| **Live Web App** | [shl-assessment-recommender.streamlit.app](https://shl-assessment1-devdattapatilll.streamlit.app/) |
+| **API Endpoint** | [shl-assessment-api.onrender.com](https://shl-assessment1.onrender.com/) |
+| **API Docs (Swagger)** | [shl-assessment-api.onrender.com/docs](https://shl-assessment1.onrender.com/docs) |
+| **GitHub Repository** | [github.com/devdattapatilll/SHL-assessment1](https://github.com/devdattapatilll/SHL-assessment1) |
 
-### 🛠️ Our Approach
-1. **Scrape:** Extracts data from SHL's product catalog.
-2. **Embed:** Converts descriptions into high-dimensional vectors.
-3. **Retrieve:** Performs semantic matching using **ChromaDB**.
-4. **Augment:** Generates AI-driven HR insights via the **Gemini API**.
-5. **API Deployment:** The tool is hosted and accessible via the [Render API Endpoint](https://shl-assessment-recommendor.onrender.com/recommend).
+### API Usage
+
+```bash
+# Health check
+curl https://shl-assessment1.onrender.com/health
+
+# Get recommendations
+curl -X POST https://shl-assessment1.onrender.com/recommend \
+  -H "Content-Type: application/json" \
+  -d '{"query": "I need a test for Java developers with 3 years experience"}'
+```
+
+**Response Format:**
+```json
+{
+  "recommended_assessments": [
+    {
+      "url": "https://www.shl.com/...",
+      "name": "Java 8 (New)",
+      "adaptive_support": "No",
+      "description": "Multi-choice test measuring...",
+      "duration": 40,
+      "remote_support": "Yes",
+      "test_type": ["Knowledge & Skills"]
+    }
+  ]
+}
+```
 
 ---
 
-## 💻 Tech Stack
+## 🌟 Key Features
 
-| Category | Tools & Technologies |
-| :--- | :--- |
-| **Backend** | `FastAPI`, `Uvicorn` |
-| **AI/ML** | `ChromaDB`, `Sentence-Transformers`, `RAG` |
-| **LLM** | `Google Gemini API` |
-| **Frontend** | `Streamlit` |
-| **Scraping** | `BeautifulSoup4`, `Requests` |
-| **Cloud** | `Render`, `Streamlit Cloud` |
+- **Full Catalog Scraper**: Dynamically scrapes 389+ Individual Test Solutions from SHL's product catalog
+- **Hybrid RAG Pipeline**: FAISS dense retrieval + BM25 sparse retrieval fused via Reciprocal Rank Fusion (RRF)
+- **Balanced Recommendations**: Intelligently balances "Knowledge & Skills" and "Personality & Behavior" assessments
+- **LLM Query Enhancement**: Optional Google Gemini integration for extracting skills/intent from vague queries
+- **Premium Frontend**: Modern dark-themed Streamlit UI with gradient cards and metadata badges
+- **Comprehensive Evaluation**: Automated Mean Recall@10 computation against ground-truth dataset
 
----
+## 🏛️ Architecture
 
-## ⚙️ How It Works (Pipeline)
+```
+Query → [Optional LLM Enhancement] → Hybrid Search
+                                        ├── FAISS Semantic (Top-20)
+                                        └── BM25 Keyword (Top-20)
+                                              ↓
+                                    Reciprocal Rank Fusion (70/30)
+                                              ↓
+                                    K/P Type Balancing
+                                              ↓
+                                    Top 5-10 Recommendations
+```
 
-1. **Data Collection:** Scrapes website details into structured JSON (`scraper.py`).
-2. **Vector Store:** Descriptions are embedded and persisted in **ChromaDB** (`rag.py`).
-3. **Processing:** Job descriptions are analyzed and ranked via the API (`api.py`).
-4. **Intelligence:** Gemini API generates summaries on candidate levels and usage tips.
-5. **Interface:** A clean Streamlit UI displays ranked matches with actionable insights.
+## 📊 Evaluation Results
 
----
+| Configuration | Mean Recall@10 |
+|--------------|----------------|
+| Baseline (FAISS only) | 0.02 |
+| **Hybrid (FAISS + BM25 + RRF)** | **0.17** |
 
-## 📊 Workflow Diagram
-```mermaid
-graph TB
-    Start([Start System]) --> Config[Initialize Configurations]
-    
-    subgraph Data_Preparation [DATA PREPARATION PHASE]
-    Config --> Row1A[Scrape Website]
-    Row1A --> Row1B[Clean Data]
-    Row1B --> Row1C[Store JSON]
-    Row1C --> Row2A[Generate Embeddings]
-    Row2A --> Row2B[Store in ChromaDB]
-    end
-    
-    subgraph Interaction [USER INTERACTION PHASE]
-    Row2B --> Row3A[Receive Query]
-    Row3A --> Row3B[Semantic Search]
-    Row3B --> Row4A[Rank Top-N Matches]
-    end
-    
-    subgraph AI_Insights [AI INSIGHTS PHASE]
-    Row4A --> Row5A[Gemini API Analysis]
-    Row5A --> End([Display Results])
-    end
+**8.5× improvement** over baseline through hybrid search.
 
-    %% High-Contrast Gold Styling for Visibility
-    style Start fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style End fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Config fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row1A fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row1B fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row1C fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row2A fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row2B fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row3A fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row3B fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row4A fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Row5A fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
+## 🚀 Quick Start (Local)
 
-    %% Subgraph Container Styling
-    style Data_Preparation fill:#222,stroke:#FFD700,stroke-width:2px,color:#FFD700
-    style Interaction fill:#222,stroke:#FFD700,stroke-width:2px,color:#FFD700
-    style AI_Insights fill:#222,stroke:#FFD700,stroke-width:2px,color:#FFD700
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Setup: convert data + build FAISS index
+python main.py --setup
+
+# Start API server (http://localhost:8000)
+python main.py --api
+
+# Start Streamlit UI (http://localhost:8501)
+python main.py --frontend
+
+# Run evaluation
+python main.py --evaluate
+```
+
+## 📂 Project Structure
+
+```
+├── scraper/          # SHL catalog web scraper
+├── embeddings/       # FAISS index + sentence-transformers
+├── retriever/        # Hybrid RAG pipeline (FAISS + BM25 + RRF)
+├── api/              # FastAPI backend (/health, /recommend)
+├── frontend/         # Streamlit UI (self-contained)
+├── evaluation/       # Recall@10 metrics + CSV export
+├── data/             # Scraped data, FAISS index, predictions
+├── main.py           # CLI entry point
+├── Procfile          # Render deployment config
+└── requirements.txt  # Dependencies
+```
+
+## 🛠️ Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Embeddings | `all-MiniLM-L6-v2` (Sentence-Transformers) |
+| Vector Store | FAISS (CPU, Inner Product) |
+| Keyword Search | BM25/Okapi |
+| Fusion | Reciprocal Rank Fusion (k=60) |
+| API | FastAPI + Uvicorn |
+| Frontend | Streamlit |
+| LLM (optional) | Google Gemini 2.0 Flash |
